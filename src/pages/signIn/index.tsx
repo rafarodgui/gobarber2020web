@@ -1,21 +1,20 @@
-import React, { useRef, useCallback, useContext } from 'react';
+import React, { useRef, useCallback } from 'react';
+import { Link, useHistory } from 'react-router-dom';
 import { FiLogIn, FiMail, FiLock } from 'react-icons/fi';
 
 import { FormHandles } from '@unform/core';
+import { Form } from '@unform/web';
 
 import * as Yup from 'yup';
 
-import { Form } from '@unform/web';
-
-import { Link } from 'react-router-dom';
-
-import { AuthContext } from '../../context/AuthContext';
+import { useAuth } from '../../hooks/auth';
+import { useToast } from '../../hooks/toast';
 import getValidationErrors from '../../util/getValidationErrors';
 
 import Button from '../../components/Button';
 import Input from '../../components/Input';
 
-import { Container, Content, Background } from './styles';
+import { Container, Content, Background, AnimationContainer } from './styles';
 
 interface SignInFormData {
     email: string;
@@ -26,8 +25,12 @@ const logo = require('../../assets/logo.svg');
 
 const SignIn: React.FC = () => {
     const formRef = useRef<FormHandles>(null);
+    const history = useHistory();
 
-    const { signIn } = useContext(AuthContext);
+    const { user, signIn } = useAuth();
+    const { addToast } = useToast();
+
+    console.log(user);
 
     formRef.current?.setErrors({});
 
@@ -45,41 +48,59 @@ const SignIn: React.FC = () => {
                     abortEarly: false,
                 });
 
-                signIn({
+                await signIn({
                     email: data.email,
                     password: data.password,
                 });
+
+                history.push('/dashboard');
             } catch (err) {
-                const errors = getValidationErrors(err);
-                formRef.current?.setErrors(errors);
+                if (err instanceof Yup.ValidationError) {
+                    const errors = getValidationErrors(err);
+                    formRef.current?.setErrors(errors);
+
+                    return;
+                }
+
+                addToast({
+                    title: 'error',
+                    type: 'error',
+                    description: 'Login error, check the data',
+                });
             }
         },
-        [signIn]
+        [signIn, addToast, history]
     );
 
     return (
         <Container>
             <Content>
-                <img src={logo} alt="gobarberLogo" />
+                <AnimationContainer>
+                    <img src={logo} alt="gobarberLogo" />
 
-                <Form ref={formRef} onSubmit={handleSubmit}>
-                    <h1>Logon</h1>
-                    <Input name="email" icon={FiMail} placeholder="E-mail" />
-                    <Input
-                        name="password"
-                        type="password"
-                        icon={FiLock}
-                        placeholder="Senha"
-                    />
+                    <Form ref={formRef} onSubmit={handleSubmit}>
+                        <h1>Logon</h1>
+                        <Input
+                            name="email"
+                            icon={FiMail}
+                            placeholder="E-mail"
+                        />
+                        <Input
+                            name="password"
+                            type="password"
+                            icon={FiLock}
+                            placeholder="Passowrd"
+                        />
 
-                    <Button type="submit">Log-in</Button>
-                    <a href="">Forgot my passowrd</a>
-                </Form>
+                        <Button type="submit">Log-in</Button>
+                        <a href="/">Forgot my passowrd</a>
+                    </Form>
 
-                <Link to="signup">
-                    <FiLogIn />
-                    Sign-in
-                </Link>
+                    <Link to="signup">
+                        <FiLogIn />
+                        Sign-Up
+                    </Link>
+                </AnimationContainer>
             </Content>
             <Background />
         </Container>
